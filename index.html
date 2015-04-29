@@ -1,0 +1,288 @@
+<head>
+<script>
+
+var buffer="";
+var command="";
+var driveLetter="root";
+var console=null;
+var caret="_";
+var blinkTimer=null;
+var commandHistory = new Array();
+var path = new Array();
+var tmpCommand="";
+var historyPos=0;
+
+function processCommand(text)
+{
+  if(text.indexOf(" ") != -1)
+  {
+    var actualCommand = text.substring(0,text.indexOf(" "));
+    var parameters = text.substring(text.indexOf(" ")+1,text.length).split(" ");
+  }
+  else
+  {
+    var actualCommand = text;
+    var parameters = new Array();
+  }
+  try
+  {
+    if((actualCommand.indexOf(":") == 1) && (actualCommand.length == 2))
+    {
+      driveLetter = actualCommand.charAt(0).toUpperCase();
+      return "";
+    }
+    switch(actualCommand.toLowerCase())
+    {
+      case "":      return "";
+      case "eval":  return eval(parameters.join(" ")) + "\n";
+      case "uname":    return "Linux\n\n";
+      case "uname-a":  return "Linux teamp0ison 3.13.0-24-generic #47-TP SMP Fri May 2 23:30:00 UTC 2014 x86_64 x86_64 x86_64 GNU/Linux\n\n";
+      case "clear":
+      case "cd":    return processDirectoryChange(parameters[0]);
+      case "cd\\":  return processDirectoryChange("\\");
+      case "ls":    return "ezines exploits forums recon_tools services contact_us\n"
+      case "echo":  return parameters.join(" ") + "\n";
+      case "date":  return Date() + "\n";
+      case "help":  return printHelp();
+      case "exit":  return init();
+	  
+	  }
+    try
+    {
+      var output = eval(text);
+      
+      // check command returned some output
+      // (if it failed we move to the catch block, so this is only
+      // for valid javascript that doesn't return anything)
+      
+      if(output != undefined)
+        return output + "\n";
+      else
+        return "";
+    }
+    catch(err)
+    {
+      return "bash: command not found\n";
+    }
+  }
+  catch(err)
+  {
+    return "command not found [" + err + "]\n";
+  }
+  return "command not found\n"; //should never reach here
+}
+
+function processDirectoryChange(dirs)
+{
+  if(dirs == undefined)
+    return "";
+  else if(dirs.charAt(1) == ":")
+  {
+    driveLetter = dirs.charAt(0);
+    path = dirs.substring(3,dirs.length).split("\\");
+    return "";
+  }
+  dirs = dirs.replace(/\//g,"\\");
+  dirArray = dirs.split("\\");
+  for(var dir in dirArray)
+  {
+    changeDirectory(dirArray[dir]);
+  }
+  return "";
+}
+
+function changeDirectory(dir)
+{
+  if((dir == ".") || (dir == ""))
+    return 
+  else if(dir == "..")
+    path.pop();
+  else if(dir == "\\")
+    path = new Array();
+  else
+    path.push(dir);
+  return "";
+}
+
+function processDir(ls)
+{
+  if(ls == undefined)
+    dir = driveLetter + "@TeaMp0isoN~#\\" + path.join("\\");
+  var output = "";
+  output += "ezines  wargames blog irc xmpp-server tools releases ezines exploits tutorials ghdb wiki github services contact-us\n\n";
+
+  return output;
+}
+
+function printHelp()
+{
+  var output="";
+  
+  output += ("GNU bash, version 4.3.11(1)-release (x86_64-pc-linux-gnu)\n");
+  output += ("These shell commands are defined internally.  Type `help' to see this list.\n");
+  output += ("");
+  output += ("A star (*) next to a name means that the command is disabled\n");
+  output += ("");
+  output += "cd [-L|[-P [-e]] [-@]] [dir]\n";
+  output += "eval [arg ...]\n";
+  output += "exit [n]\n";
+  output += "help [-dms] [pattern ...]\n";
+  output += "jobs [-lnprs] [jobspec ...] or jobs >\n";
+  output += "ls\n";
+  output += "uname\n\n";
+  return output;
+}
+
+function println(text)
+{
+  buffer += text + "\n";
+  updateConsole();
+}
+
+function updateConsole()
+{
+  console.value = buffer + driveLetter + "@TeaMp0isoN~#" + path.join("\\") + command + caret;
+  console.scrollTop = console.scrollHeight;
+}
+
+function processKey(event)
+{
+  if(navigator.appName.indexOf("Microsoft")!=-1)
+    var keyCode = event.keyCode
+  else
+    var keyCode = event.which
+
+  caret="";
+  clearTimeout(blinkTimer);
+  blinkTimer = setTimeout("switchBlink()",600);
+
+  if((keyCode >= 20) && (keyCode <= 0x99))
+  {
+    command += String.fromCharCode(keyCode);
+  }
+  else if(keyCode == 13)
+  {
+     if(command.length > 0)
+        commandHistory.push(command);
+     buffer += driveLetter + "@TeaMp0isoN~#" + path.join("\\")  + command + "\n";
+     var output = processCommand(command);
+     buffer += output;
+     
+    /* var bufArray = buffer.split("\n");
+     var start=Math.max(bufArray.length-24,0);
+     
+     bufArray = bufArray.slice(start,start+24);
+     buffer = bufArray.join("\n"); */
+     
+     command="";
+     historyPos=0;
+  }
+  else if(keyCode == 8)
+  {
+    command = command.substring(0,command.length-1);
+  } 
+  else
+  {
+    if(event.keyCode == 38)
+    {
+      doCommandHistory(+1);
+    }
+    else if(event.keyCode == 40)
+    {
+      doCommandHistory(-1);
+    }
+  }
+  updateConsole();
+  
+  return false;
+}
+function doCommandHistory(direction)
+{
+  if(commandHistory.length > 0)
+  {
+    if(historyPos==0)
+      tmpCommand = command;
+    historyPos = Math.max(0,Math.min(historyPos+direction,commandHistory.length));
+    if(historyPos==0)
+      command = tmpCommand;
+    else
+      command = commandHistory[commandHistory.length-historyPos];
+  }
+  updateConsole();
+}
+function switchBlink()
+{
+  if(caret == "_") 
+    caret = "";
+  else
+    caret = "_";
+  blinkTimer = setTimeout("switchBlink()",600);
+  updateConsole();
+}
+function init()
+{
+  buffer=""; // init is also reInit
+  console = document.getElementById('cmd');
+  if(blinkTimer)
+    clearTimeout(blinkTimer);
+  blinkTimer = setTimeout("switchBlink()",600);
+  println("");
+  println("Connecting to proxy server(127.0.0.1:9050)...");
+  println("Connection established.");  
+  println("");
+  println("Welcome to TeaMp0isoN 1.0.3 (GNU/Linux 3.13.0-24-generic x86_64)");
+  println("");
+  println(" * Documentation: help");
+  println("");   
+  console.focus();
+  return "";
+  
+}
+function handleSpecialKeysInIE(event)
+{
+	switch(event.keyCode)
+		{
+		  case 8:   return processKey(event);
+		  case 38:  return doCommandHistory(+1);
+		  case 40:  return doCommandHistory(-1);
+		}
+} 
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-350512-4']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+function clickedAlert(e) {
+	var posx = 0;
+	var posy = 0;
+	if (!e) var e = window.event;
+	if (e.pageX || e.pageY) 	{
+		posx = e.pageX;
+		posy = e.pageY;
+	}
+	else if (e.clientX || e.clientY) 	{
+		posx = e.clientX + document.body.scrollLeft
+			+ document.documentElement.scrollLeft;
+		posy = e.clientY + document.body.scrollTop
+			+ document.documentElement.scrollTop;
+	}
+}  
+  
+</script>
+
+<title>TeaMp0isoN Shell</title>
+
+</head>
+<body bgcolor="Black" onload="init()" onKeyDown="return handleSpecialKeysInIE(event)" onKeyPress="return processKey(event)" onClick="clickedAlert(event)" scroll="no" style="OverFlow:Hidden">
+
+<textarea readonly id="cmd" style="overflow:hidden; width:100%; height:100%; background-color: #000800; color: #0f0; font-family: 'Lucida Console' 'Courier New' Monospace; border: none; background-attachment: fixed;" onFocus="this.blur();" ></textarea>
+
+</body>
+
+</html>
